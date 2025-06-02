@@ -9,13 +9,13 @@ def cal_mmm(listaNumeros, op):
      
     elif op == 13:
         #retorna a moda 
-        mod = s.mode(ListaNumeros)
+      mod = s.mode(ListaNumeros)
         
         print('A moda dos números informados é {}\n'.format(round(mod, 2)))
         
     elif op == 14:
         #retorna a mediana
-        med = s.median(ListaNumeros)
+      med = s.median(ListaNumeros)
         
         
         print('A mediana dos números informados é {}\n'.format(round(med, 2)))
