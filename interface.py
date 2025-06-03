@@ -1,4 +1,3 @@
-# interface.py
 import tkinter as tk
 import math
 import datetime
@@ -9,7 +8,6 @@ class CalculadoraGUI:
         self.root.title("Calculadora Científica com Histórico")
         self.root.geometry("400x720")
 
-        # Detectar modo inicial
         self.modo = self.detectar_modo()
         self.estilos = self.definir_cores(self.modo)
 
@@ -17,8 +15,11 @@ class CalculadoraGUI:
 
         self.expressao = ""
         self.entrada_texto = tk.StringVar()
+        self.ultimo_resultado = None
+        self.limpar_ao_digitar = False  # limpa display após resultado/erro
 
         self.criar_interface()
+        self.root.bind("<Key>", self.tecla_digitada)
 
     def detectar_modo(self):
         hora = datetime.datetime.now().hour
@@ -45,7 +46,6 @@ class CalculadoraGUI:
             }
 
     def criar_interface(self):
-        # Botão alternar tema
         self.botao_tema = tk.Button(
             self.root, text="Alternar Tema", font=("Arial", 12),
             bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"],
@@ -53,7 +53,6 @@ class CalculadoraGUI:
         )
         self.botao_tema.pack(pady=(10, 0), padx=10, anchor="ne")
 
-        # Campo de entrada
         self.entrada = tk.Entry(
             self.root, textvariable=self.entrada_texto, font=('Arial', 24),
             bg=self.estilos["display_bg"], fg=self.estilos["fg"],
@@ -67,25 +66,26 @@ class CalculadoraGUI:
             ['1', '2', '3', '-', 'log'],
             ['0', '.', '(', ')', '+'],
             ['π', 'e', 'sin', 'cos', 'tan'],
-            ['C', '⌫', '=', '', '']
+            ['C', '⌫', '=', 'ans', 'x!']
         ]
 
-        self.frames_botoes = []
+        self.frame_botoes = tk.Frame(self.root, bg=self.estilos["bg"])
+        self.frame_botoes.pack(expand=True, fill="both", padx=10, pady=5)
 
-        for linha in botoes:
-            frame = tk.Frame(self.root, bg=self.estilos["bg"])
-            self.frames_botoes.append(frame)
-            frame.pack(expand=True, fill="both")
-            for texto in linha:
-                if texto:
-                    btn = tk.Button(
-                        frame, text=texto, font=("Arial", 16),
-                        bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"],
-                        command=lambda t=texto: self.clique(t)
-                    )
-                    btn.pack(side="left", expand=True, fill="both")
+        for i, linha in enumerate(botoes):
+            for j, texto in enumerate(linha):
+                btn = tk.Button(
+                    self.frame_botoes, text=texto, font=("Arial", 16),
+                    bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"],
+                    command=lambda t=texto: self.clique(t)
+                )
+                btn.grid(row=i, column=j, sticky="nsew", padx=1, pady=1)
 
-        # Histórico
+        for i in range(len(botoes)):
+            self.frame_botoes.rowconfigure(i, weight=1)
+        for j in range(len(botoes[0])):
+            self.frame_botoes.columnconfigure(j, weight=1)
+
         self.label_hist = tk.Label(self.root, text="Histórico de Cálculos", font=("Arial", 14),
                                    bg=self.estilos["bg"], fg=self.estilos["fg"])
         self.label_hist.pack(pady=(10, 0))
@@ -93,12 +93,12 @@ class CalculadoraGUI:
         self.caixa_hist = tk.Text(self.root, height=8, font=("Arial", 12),
                                   bg=self.estilos["hist_bg"], fg=self.estilos["fg"],
                                   state='disabled', wrap='word')
-        self.caixa_hist.pack(fill="both", padx=10, pady=5, expand=False)
+        self.caixa_hist.pack(fill="both", padx=10, pady=5)
 
-        scrollbar = tk.Scrollbar(self.caixa_hist)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.caixa_hist.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.caixa_hist.yview)
+        self.scrollbar = tk.Scrollbar(self.caixa_hist)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.caixa_hist.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.config(command=self.caixa_hist.yview)
 
     def alternar_tema(self):
         self.modo = "escuro" if self.modo == "claro" else "claro"
@@ -110,18 +110,20 @@ class CalculadoraGUI:
         self.entrada.configure(bg=self.estilos["display_bg"], fg=self.estilos["fg"])
         self.label_hist.configure(bg=self.estilos["bg"], fg=self.estilos["fg"])
         self.caixa_hist.configure(bg=self.estilos["hist_bg"], fg=self.estilos["fg"])
-
         self.botao_tema.configure(bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"])
+        self.frame_botoes.configure(bg=self.estilos["bg"])
 
-        # Atualizar botões
-        for frame in self.frames_botoes:
-            for btn in frame.winfo_children():
-                btn.configure(bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"])
-            frame.configure(bg=self.estilos["bg"])
+        for btn in self.frame_botoes.winfo_children():
+            btn.configure(bg=self.estilos["btn_bg"], fg=self.estilos["btn_fg"])
 
     def clique(self, tecla):
+        if self.limpar_ao_digitar and tecla not in ['=', 'C', '⌫', 'ans']:
+            self.expressao = ''
+            self.limpar_ao_digitar = False
+
         if tecla == 'C':
             self.expressao = ''
+            self.limpar_ao_digitar = False
         elif tecla == '⌫':
             self.expressao = self.expressao[:-1]
         elif tecla == '=':
@@ -129,9 +131,24 @@ class CalculadoraGUI:
                 resultado = self.calcular(self.expressao)
                 self.adicionar_historico(f"{self.expressao} = {resultado}")
                 self.expressao = str(resultado)
-            except Exception:
-                self.adicionar_historico(f"{self.expressao} = Erro")
+                self.ultimo_resultado = resultado
+                self.limpar_ao_digitar = True
+            except ZeroDivisionError:
+                self.adicionar_historico(f"{self.expressao} = Erro: Divisão por zero")
+                self.expressao = 'Erro: Divisão por zero'
+                self.limpar_ao_digitar = True
+            except SyntaxError:
+                self.adicionar_historico(f"{self.expressao} = Erro: Sintaxe inválida")
+                self.expressao = 'Erro: Sintaxe inválida'
+                self.limpar_ao_digitar = True
+            except ValueError as ve:
+                self.adicionar_historico(f"{self.expressao} = Erro: {ve}")
+                self.expressao = f'Erro: {ve}'
+                self.limpar_ao_digitar = True
+            except Exception as e:
+                self.adicionar_historico(f"{self.expressao} = Erro: {e}")
                 self.expressao = 'Erro'
+                self.limpar_ao_digitar = True
         elif tecla == 'π':
             self.expressao += str(math.pi)
         elif tecla == 'e':
@@ -142,24 +159,68 @@ class CalculadoraGUI:
             self.expressao += f"{tecla}("
         elif tecla == '^':
             self.expressao += '**'
+        elif tecla == 'ans':
+            if self.ultimo_resultado is not None:
+                self.expressao += str(self.ultimo_resultado)
+        elif tecla == 'x!':
+            self.expressao += 'factorial('
         else:
             self.expressao += str(tecla)
 
         self.entrada_texto.set(self.expressao)
 
     def calcular(self, exp):
-        return eval(exp, {"__builtins__": None}, {
+        def safe_factorial(x):
+            if not (isinstance(x, int) and x >= 0):
+                raise ValueError("Fatorial só para inteiros >= 0")
+            return math.factorial(x)
+
+        funcoes = {
             "sin": lambda x: math.sin(math.radians(x)),
             "cos": lambda x: math.cos(math.radians(x)),
             "tan": lambda x: math.tan(math.radians(x)),
-            "log": lambda x: math.log10(x),
+            "log": math.log10,
             "sqrt": math.sqrt,
+            "factorial": safe_factorial,
             "pi": math.pi,
-            "e": math.e
-        })
+            "e": math.e,
+        }
+        # Avalia expressão com funções e constantes permitidas
+        return eval(exp, {"__builtins__": None}, funcoes)
 
     def adicionar_historico(self, texto):
         self.caixa_hist.config(state='normal')
         self.caixa_hist.insert(tk.END, texto + "\n")
         self.caixa_hist.see(tk.END)
         self.caixa_hist.config(state='disabled')
+
+    def tecla_digitada(self, evento):
+        tecla = evento.keysym
+
+        if tecla in "0123456789":
+            self.clique(tecla)
+        elif tecla in ("plus", "KP_Add"):
+            self.clique('+')
+        elif tecla in ("minus", "KP_Subtract"):
+            self.clique('-')
+        elif tecla in ("asterisk", "KP_Multiply"):
+            self.clique('*')
+        elif tecla in ("slash", "KP_Divide"):
+            self.clique('/')
+        elif tecla == "parenleft":
+            self.clique('(')
+        elif tecla == "parenright":
+            self.clique(')')
+        elif tecla == "period":
+            self.clique('.')
+        elif tecla == "Return":
+            self.clique('=')
+        elif tecla == "BackSpace":
+            self.clique('⌫')
+        elif tecla == "Escape":
+            self.clique('C')
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CalculadoraGUI(root)
+    root.mainloop()
