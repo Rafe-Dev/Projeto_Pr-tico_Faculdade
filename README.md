@@ -15,3 +15,11 @@ Autores
 
 - Rafael Chagas
 - Álvaro Luiz
+
+
+
+
+Divisão do Projeto 
+
+Rafael Chagas : Criador do código principal da calculadora e suas funcionalidades 
+Álvaro Luiz : Explicação do código com um video postado no youtube e pequena ajuda com alterações do código na sua etapa final
